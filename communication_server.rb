@@ -6,8 +6,8 @@ require 'openssl'
 class CommunicationServer
   def initialize(port)
     @ssl_context = OpenSSL::SSL::SSLContext.new
-    @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read("server_cert.crt"))
-    @ssl_context.key = OpenSSL::PKey::RSA.new(File.read("server_private.key"))
+    @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read("../server_cert.crt"))
+    @ssl_context.key = OpenSSL::PKey::RSA.new(File.read("../server_private.key"))
     @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
     # SSL Strong cipher suite.
     @ssl_context.ciphers = 'HIGH:!aNULL:!eNULL'

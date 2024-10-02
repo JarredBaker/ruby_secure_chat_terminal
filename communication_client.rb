@@ -9,7 +9,7 @@ class CommunicationClient
     # Set up SSL context
     ssl_context = OpenSSL::SSL::SSLContext.new
     ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
-    ssl_context.ca_file = 'server_cert.crt'
+    ssl_context.ca_file = '../server_cert.crt'
     # SSL Strong cipher suite.
     ssl_context.ciphers = 'HIGH:!aNULL:!eNULL'
 
