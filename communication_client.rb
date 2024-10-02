@@ -19,7 +19,7 @@ require_relative 'concerns/ssl_connection'
 # - Command-based interface to gracefully quit the chat (e.g., sending `/quit`).
 #
 # Usage:
-#   client = CommunicationClient.new('localhost', 3000)
+#   ruby communication_client.rb [Optional port - default: 3000]
 #
 # Components:
 # - SSLSetup: Sets up the SSL context and handles secure connection establishment.

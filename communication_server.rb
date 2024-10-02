@@ -22,7 +22,7 @@ require_relative 'concerns/server_error_log'
 # - Multi-threaded: each client is managed in a separate thread.
 #
 # Usage:
-#   ruby communication_server.rb [Optional port]
+#   ruby communication_server.rb [Optional port - default: 3000]
 #
 # Components:
 # - SSLSetup module: Handles SSL context creation for encrypted communication.
