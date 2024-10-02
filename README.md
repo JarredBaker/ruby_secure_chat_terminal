@@ -49,6 +49,7 @@ ruby communication_client.rb 80
 # Improvements: 
 
 - [ ] **End to end encryption**.
+- [ ] **Secure store for certificates**
 - [ ] **Self hosted DB for user persistence**
 - [ ] **Authentication**
 - [ ] **Ngrok or self hosting testing**
