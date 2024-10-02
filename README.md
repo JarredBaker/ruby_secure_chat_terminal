@@ -30,7 +30,7 @@ ruby communication_server.rb
 
 ***options*** Specify the port. Default is 3000
 ```ruby
-ruby communication_server.rb 80
+ruby communication_server.rb 3001
 ```
 
 ### Start a client: 
@@ -43,9 +43,15 @@ ruby communication_client.rb
 ```
 ***options*** Specify the port. Default is 3000
 ```ruby
-ruby communication_client.rb 80
+ruby communication_client.rb 3001
 ```
 
 # Improvements: 
 
-TODO
+- [ ] **End to end encryption**.
+- [ ] **Secure store for certificates**
+- [ ] **Self hosted DB for user persistence**
+- [ ] **Authentication**
+- [ ] **Ngrok or self hosting testing**
+- [ ] **Signal to notify friends when you online**
+- [ ] **Pending messages**
