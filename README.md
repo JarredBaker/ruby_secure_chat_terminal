@@ -51,6 +51,6 @@ ruby communication_client.rb 80
 - [ ] **End to end encryption**.
 - [ ] **Self hosted DB for user persistence**
 - [ ] **Authentication**
-- [ ] **Connectioned with ngrok**
+- [ ] **Ngrok or self hosting testing**
 - [ ] **Signal to notify friends when you online**
 - [ ] **Pending messages**
