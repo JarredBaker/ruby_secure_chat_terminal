@@ -3,16 +3,47 @@
 require 'socket'
 require 'openssl'
 require 'logger'
+require_relative 'concerns/ssl_connection'
+require_relative 'concerns/server_client_management'
+require_relative 'concerns/command_listener'
+require_relative 'concerns/server_error_log'
 
+##
+# CommunicationServer is a multi-threaded, SSL-secured chat server that allows
+# multiple clients to connect and communicate with each other in real-time.
+# It supports encrypted communication over SSL/TLS and provides functionalities
+# to handle user commands, broadcast messages, and manage client connections.
+#
+# Features:
+# - SSL encryption for secure client-server communication.
+# - Real-time message broadcasting to all connected clients.
+# - Command-line interface for managing the server (e.g., listing clients).
+# - Handles graceful client disconnections and server shutdowns.
+# - Multi-threaded: each client is managed in a separate thread.
+#
+# Usage:
+#   ruby communication_server.rb [Optional port]
+#
+# Components:
+# - SSLSetup module: Handles SSL context creation for encrypted communication.
+# - ClientManagement module: Manages client connections, adding/removing clients, and listing connected clients.
+# - CommandListener module: Provides a command interface to interact with the server via the terminal.
+# - ErrorLogging module: Handles logging of errors for debugging and monitoring.
+#
+# The server runs continuously and can be terminated via Ctrl+C, which triggers a graceful shutdown.
 class CommunicationServer
-  def initialize(port)
-    @ssl_context = OpenSSL::SSL::SSLContext.new
-    @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read("../server_cert.crt"))
-    @ssl_context.key = OpenSSL::PKey::RSA.new(File.read("../server_private.key"))
-    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    @ssl_context.ciphers = 'HIGH:!aNULL:!eNULL' # SSL Strong cipher suite.
-    @server = TCPServer.new(port) # Create TCP server -> Later gets upgraded to SSL
+  include SSLConnection
+  include ServerClientManagement
+  include CommandListener
+  include ServerErrorLog
 
+  ##
+  # Initializes the server, sets up SSL and logging, and starts necessary threads.
+  #
+  # @param [String] port The port to start the server on.
+  def initialize(port)
+    @ssl_context = setup_server_ssl_context
+    @server = TCPServer.new(port) # Create TCP server
     @clients = {}
     @running = true
     @logger = Logger.new($stdout)
@@ -20,74 +51,69 @@ class CommunicationServer
 
     start_command_listener
 
-    trap(:INT) do
-      signal_shutdown
-      exit
-    end
+    trap(:INT) { signal_shutdown; exit }
 
     run
   end
 
-  def start_command_listener
-    Thread.new do
-      loop do
-        command = $stdin.gets&.chomp
-        terminal_commands = {
-          clients: -> { list_clients }
-        }
-        terminal_commands[command.gsub("/", "").to_sym]&.call
-        puts "Unknown command. Available commands: /clients" if terminal_commands[command.gsub("/", "").to_sym].nil?
-      end
-    end
-  end
-
-  def list_clients
-    return puts "No clients connected." if @clients.empty?
-    puts "Connected clients:"
-    @clients.each_key { |nickname| puts "- #{nickname}" }
-  end
-
+  ##
+  # Runs the main loop that accepts client connections and handles SSL upgrades.
   def run
     while @running
       begin
         tcp_client = @server.accept
-        ssl_client = OpenSSL::SSL::SSLSocket.new(tcp_client, @ssl_context) # Upgrade to an SSL connection
+        ssl_client = OpenSSL::SSL::SSLSocket.new(tcp_client, @ssl_context)
         ssl_client.accept # Perform the SSL handshake
 
-        Thread.start(ssl_client) do |client|
-          handle_client(client)
-        end
+        Thread.start(ssl_client) { |client| handle_client(client) }
       rescue IO::WaitReadable, Errno::EINTR
         IO.select([@server])
         retry
       rescue OpenSSL::SSL::SSLError => e
-        puts "SSL error: #{e.message}"
+        log_generic_error(e)
       end
     end
   end
 
+  ##
+  # Handles a new client connection, adding them to the client list.
+  #
+  # @param [OpenSSL::SSL::SSLSocket] client The client socket.
   def handle_client(client)
     client.puts "Welcome to the secure chat! Please enter your nickname:"
     nickname = client.gets&.chomp&.to_sym || "Unknown"
 
-    if @clients.key?(nickname)
-      client.puts "Nickname already in use. Disconnecting."
-      close_socket(client)
-    else
-      @clients[nickname] = client
-
-      client.puts "Hi #{nickname}! You can start chatting now."
-      broadcast("#{nickname} has joined the chat.", client)
-      listen_user_messages(nickname, client)
-    end
+    add_client(nickname, client)
   rescue OpenSSL::SSL::SSLError => e
-    puts "SSL error: #{e.message}"
+    log_generic_error(e)
   rescue IOError, EOFError => e
-    nickname ||= "Unknown"
+    log_generic_error(e)
     broadcast("#{nickname} has left the chat.", client)
     close_socket(client)
   end
 
+  ##
+  # Broadcast a message to all connected clients except the sender.
+  #
+  # @param [String] message The message to broadcast.
+  # @param [OpenSSL::SSL::SSLSocket] sender_client The client that sent the message.
+  def broadcast(message, sender_client)
+    @clients.each do |nickname, client|
+      next if client == sender_client
+      begin
+        client.puts message
+      rescue IOError, OpenSSL::SSL::SSLError => e
+        log_generic_error(e)
+        client_error_disconnect(nickname, client)
+      end
+    end
+  end
+
+  ##
+  # Listens for messages from a client.
+  #
+  # @param [String] nickname The client's nickname.
+  # @param [OpenSSL::SSL::SSLSocket] client The client socket.
   def listen_user_messages(nickname, client)
     loop do
       if (msg = client.gets&.chomp) == "/quit"
@@ -103,21 +129,13 @@ class CommunicationServer
     client_error_disconnect(nickname, client)
   end
 
-  # Broadcast a message to all clients, except the sender
-  def broadcast(message, sender_client)
-    @clients.each do |nickname, client|
-      next if client == sender_client
-      begin
-        client.puts message
-      rescue IOError, OpenSSL::SSL::SSLError => e
-        log_generic_error(e)
-        client_error_disconnect(nickname, client)
-      end
-    end
-  end
-
   private
 
+  ##
+  # Handles the disconnection of a client due to an error.
+  #
+  # @param [Symbol] nickname The nickname of the client.
+  # @param [OpenSSL::SSL::SSLSocket] client The client socket.
   def client_error_disconnect(nickname, client)
     broadcast("#{nickname} has disconnected due to an error.", client)
     @clients.delete(nickname)
@@ -147,19 +165,19 @@ class CommunicationServer
     @clients.clear
   end
 
-  # Close the server socket to stop accepting new connections
+  ##
+  # Closes the server socket to stop accepting new connections.
   def close_server
     close_socket(@server)
   end
 
-  # Close a socket safely, ensuring it is not closed twice
+  ##
+  # Closes a socket safely, ensuring it is not closed twice.
+  #
+  # @param [TCPServer | OpenSSL::SSL::SSLSocket] socket The socket to close.
   def close_socket(socket)
     return if socket.closed?
     socket.close rescue IOError
-  end
-
-  def log_generic_error(e)
-    @logger.error("[GENERIC ERROR]: #{e.message}")
   end
 end
 
