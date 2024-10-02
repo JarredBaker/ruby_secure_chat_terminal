@@ -1,5 +1,7 @@
 # ruby_secure_chat_terminal
 
+**Ruby secure chat terminal**: is a thread safe, multi client terminal chat server encrypted through SSL sockets. 
+
 # How to run: 
 ### openssl key generation and storage. 
 
