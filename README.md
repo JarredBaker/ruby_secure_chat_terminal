@@ -1,4 +1,4 @@
-# Ruby secure chat terminal
+# Ruby secure chat terminal [WIP]
 
 **Ruby secure chat terminal**: is a thread safe, multi client terminal chat server encrypted through SSL sockets. 
 
