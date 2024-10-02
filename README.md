@@ -28,6 +28,11 @@ openssl x509 -req -days 365 -in server_cert.csr -signkey server_private.key -out
 ruby communication_server.rb
 ```
 
+***options*** Specify the port. Default is 3000
+```ruby
+ruby communication_server.rb 80
+```
+
 ### Start a client: 
 
 Repeat this step at least twice in a new terminal every time. 
@@ -35,6 +40,10 @@ Repeat this step at least twice in a new terminal every time.
 1. Open a terminal and run:
 ```ruby
 ruby communication_client.rb
+```
+***options*** Specify the port. Default is 3000
+```ruby
+ruby communication_client.rb 80
 ```
 
 # Improvements: 
