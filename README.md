@@ -48,4 +48,9 @@ ruby communication_client.rb 80
 
 # Improvements: 
 
-TODO
+- [ ] **End to end encryption**.
+- [ ] **Self hosted DB for user persistence**
+- [ ] **Authentication**
+- [ ] **Connectioned with ngrok**
+- [ ] **Signal to notify friends when you online**
+- [ ] **Pending messages**
