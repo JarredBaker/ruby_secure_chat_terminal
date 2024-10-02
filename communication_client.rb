@@ -21,9 +21,16 @@ class CommunicationClient
 
     @request_queue = Queue.new
     @exit_flag = false
+    @logger =
     puts "Connected securely to chat server at #{server_host}:#{server_port}"
+
     start_listening_thread
     start_sending_thread
+
+    trap(:INT) do
+      close_connection
+    end
+
     @listener_thread.join
     @sender_thread.join
   end
@@ -38,14 +45,13 @@ class CommunicationClient
             puts msg.chomp
           else
             puts "Disconnected from server."
-            @exit_flag = true
-            break
+            close_connection
           end
         end
       rescue IOError, EOFError => e
         puts "Listening thread error: #{e.message}"
       ensure
-        @server.close unless @server.closed?
+        close_connection
       end
     end
   end
@@ -67,12 +73,23 @@ class CommunicationClient
             @server.puts msg
           end
         end
+
+        close_connection
       rescue IOError => e
         puts "Sending thread error: #{e.message}"
       ensure
-        @server.close unless @server.closed?
+        close_connection
       end
     end
+  end
+
+  private
+
+  def close_connection
+    @exit_flag = true
+    @server.close unless @server.closed?
+    puts "Connection closed."
+    exit
   end
 end
 
