@@ -28,6 +28,7 @@ class CommunicationClient
     start_sending_thread
 
     trap(:INT) do
+      @exit_flag = true
       close_connection
     end
 
@@ -40,18 +41,18 @@ class CommunicationClient
       begin
         loop do
           break if @exit_flag
-          msg = @server.gets
-          if msg
+          if (msg = @server.gets)
             puts msg.chomp
           else
             puts "Disconnected from server."
-            close_connection
+            close_connection unless @exit_flag
+            break
           end
         end
       rescue IOError, EOFError => e
         puts "Listening thread error: #{e.message}"
       ensure
-        close_connection
+        close_connection unless @exit_flag
       end
     end
   end
@@ -61,29 +62,38 @@ class CommunicationClient
       begin
         loop do
           break if @exit_flag
+
           msg = $stdin.gets&.chomp
           break if msg.nil?
-          if msg == "/quit"
-            @exit_flag = true
-            @server.puts msg
-            puts "Exiting chat..."
-            @server.close unless @server.closed?
-            break
-          else
-            @server.puts msg
-          end
+
+          process_input_message(msg)
         end
 
-        close_connection
+        close_connection unless @exit_flag
       rescue IOError => e
         puts "Sending thread error: #{e.message}"
       ensure
-        close_connection
+        close_connection unless @exit_flag
       end
     end
   end
 
   private
+
+  def process_input_message(msg)
+    if msg == "/quit"
+      handle_quit_message
+    else
+      @server.puts msg
+    end
+  end
+
+  def handle_quit_message
+    @exit_flag = true
+    @server.puts "/quit"
+    puts "Exiting chat..."
+    close_connection
+  end
 
   def close_connection
     @exit_flag = true
